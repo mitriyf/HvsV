@@ -1,0 +1,8 @@
+name: HvsV
+version: '1.0'
+main: ru.mitriyf.hvsv.HvsV
+softdepend: [ FastAsyncWorldEdit, PlaceholderAPI ]
+api-version: 1.13
+commands:
+  hvsv:
+    description: game settings
