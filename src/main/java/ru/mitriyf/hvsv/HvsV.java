@@ -41,6 +41,15 @@ public final class HvsV extends JavaPlugin {
         connectPlaceholderAPI();
     }
     public void generate() {
+        File w = new File(values.getWorld());
+        if (w.exists()) {
+            if (w.delete()) {
+                getLogger().warning("The " + values.getWorld() + " world has been deleted.");
+            }
+            else {
+                getLogger().warning("World deletion error: " + values.getWorld());
+            }
+        }
         if (version_mode >= 13) Bukkit.createWorld(new WorldCreator(values.getWorld()).generator(new EmptyWorld()));
         else {
             WorldCreator wc = new WorldCreator(values.getWorld());

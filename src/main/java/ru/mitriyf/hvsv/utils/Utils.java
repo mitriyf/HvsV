@@ -22,12 +22,18 @@ import ru.mitriyf.hvsv.game.Game;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class Utils {
     private final HvsV plugin;
@@ -37,6 +43,7 @@ public class Utils {
         this.plugin = plugin;
         this.values = plugin.getValues();
     }
+    // Minecraft
     private final Pattern PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     public String hex(String message) {
         StringBuffer buffer = new StringBuffer();
@@ -174,7 +181,6 @@ public class Utils {
             return null;
         }
         try {
-            plugin.getLogger().warning(String.valueOf(schem.toPath()));
             Vector lc = Vector.toBlockPoint(loc.getX(), loc.getY(), loc.getZ());
             Schematic sch = ClipboardFormats.findByFile(schem).load(schem);
             EditSession session = sch.paste(new BukkitWorld(loc.getWorld()), lc, true, false, null);
@@ -183,6 +189,23 @@ public class Utils {
         } catch (IOException error) {
             error.printStackTrace();
             return null;
+        }
+    }
+    // Другое
+    public void unpack(String zip, String dir) throws IOException {
+        Path destDirPath = Paths.get(dir);
+        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(Paths.get(zip)))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                Path filePath = destDirPath.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(filePath);
+                } else {
+                    Files.createDirectories(filePath.getParent());
+                    Files.copy(zipInputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                zipInputStream.closeEntry();
+            }
         }
     }
 }

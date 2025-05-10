@@ -9,6 +9,11 @@ import ru.mitriyf.hvsv.game.Game;
 import ru.mitriyf.hvsv.values.player.PlayerData;
 
 import java.io.*;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @Getter
@@ -21,74 +26,30 @@ public class Values {
     private final Map<String, List<String>> enter = new HashMap<>();
     private final List<String> maps = new ArrayList<>();
     private final Map<String, String> category = new HashMap<>();
-    private List<String> map = new ArrayList<>();
-    private List<String> no = new ArrayList<>();
-    private List<String> join = new ArrayList<>();
-    private List<String> quit = new ArrayList<>();
-    private List<String> end = new ArrayList<>();
-    private List<String> role = new ArrayList<>();
-    private List<String> winvict = new ArrayList<>();
-    private List<String> winhunt = new ArrayList<>();
-    private List<String> playersHun = new ArrayList<>();
-    private List<String> exitLore = new ArrayList<>();
-    private List<String> startAxe = new ArrayList<>();
-    private List<String> listAxe = new ArrayList<>();
-    private List<String> exitHun = new ArrayList<>();
-    private List<String> help = new ArrayList<>();
-    private List<String> noperm = new ArrayList<>();
-    private List<String> killVictim = new ArrayList<>();
-    private List<String> killHunter = new ArrayList<>();
-    private List<String> kicked = new ArrayList<>();
-    private ItemStack axeI;
-    private ItemStack swordI;
-    private ItemStack helmetI;
-    private ItemStack airI;
-    private ItemStack exitI;
-    private String[] spawns;
-    private String[] items;
-    private String[] hunters;
-    private String world;
-    private String notfound;
-    private String started;
-    private String connect;
-    private String victim;
-    private String hunter;
-    private String stopped;
-    private String wait;
-    private String start;
-    private String win_victim;
-    private String win_hunter;
-    private String exitName;
-    private String exitMaterial;
-    private String axe;
-    private String sword;
-    private String helmet;
-    private int vicHealth;
-    private int radius;
-    private double vicDamage;
-    private int hunHealth;
-    private double hunDamage;
-    private int x1;
-    private int x2;
-    private int y;
-    private int z1;
-    private int z2;
-    private int hunSpawn;
-    private int spawnAxe;
-    private int respawnAxe;
-    private double alocX;
-    private double alocY;
-    private double alocZ;
-    private double afaceX;
-    private double afaceY;
-    private double afaceZ;
-    private int min_players;
-    private int medium_players;
-    private int max_players;
-    private int minTime;
-    private int mediumTime;
-    private int maxTime;
-    private int endTime;
+    private final List<String> map = new ArrayList<>();
+    private final List<String> no = new ArrayList<>();
+    private final List<String> join = new ArrayList<>();
+    private final List<String> quit = new ArrayList<>();
+    private final List<String> end = new ArrayList<>();
+    private final List<String> role = new ArrayList<>();
+    private final List<String> winvict = new ArrayList<>();
+    private final List<String> winhunt = new ArrayList<>();
+    private final List<String> playersHun = new ArrayList<>();
+    private final List<String> exitLore = new ArrayList<>();
+    private final List<String> startAxe = new ArrayList<>();
+    private final List<String> listAxe = new ArrayList<>();
+    private final List<String> exitHun = new ArrayList<>();
+    private final List<String> help = new ArrayList<>();
+    private final List<String> noperm = new ArrayList<>();
+    private final List<String> killVictim = new ArrayList<>();
+    private final List<String> killHunter = new ArrayList<>();
+    private final List<String> kicked = new ArrayList<>();
+    private ItemStack axeI, swordI, helmetI, airI, exitI;
+    private String[] spawns, items, hunters;
+    private String world, notfound, started, connect, victim, hunter, stopped, wait, start, win_victim, win_hunter, exitName, exitMaterial, axe, sword, helmet;
+    private int radius, vicHealth, hunHealth, x1, x2, y, z1, z2, hunSpawn, spawnAxe, respawnAxe;
+    private double vicDamage, hunDamage, alocX, alocY, alocZ, afaceX, afaceY, afaceZ;
+    private int min_players, medium_players, max_players, minTime, mediumTime, maxTime, endTime;
     public Values(HvsV plugin) {
         this.plugin = plugin;
     }
@@ -101,13 +62,13 @@ public class Values {
     private void setupSchematics() {
         File dir = new File(plugin.getDataFolder(), "schematics");
         if (!dir.exists()) {
-            plugin.getLogger().warning("Схематики не найдены. Начинаю попытку загрузки схематик из плагина...");
+            plugin.getLogger().warning("No schematics were found. I'm starting an attempt to download schematics from the plugin...");
             dir.mkdir();
             try {
                 exportSchematics();
-                plugin.getLogger().info("Загрузка успешно завершена.");
+                plugin.getLogger().info("The download has been completed successfully.");
             } catch (Exception e) {
-                plugin.getLogger().warning("Критическая ошибка.");
+                plugin.getLogger().warning("A critical error.");
                 throw new RuntimeException(e);
             }
         }
@@ -135,19 +96,26 @@ public class Values {
     }
     private void exportSchematics() {
         String[] files = new String[] {"hello.txt"};
-        String path = "schematics/";
+        String schematics = "schematics/";
+        String path = plugin.getDataFolder() + "/" + schematics;
         try {
             for (String s : files) {
                 String fullPath = path + s;
-                if (!(new File(plugin.getDataFolder(), fullPath)).exists()) {
-                    plugin.saveResource(fullPath, true);
+                if (!(new File(fullPath)).exists()) {
+                    plugin.saveResource(schematics + s, true);
                 }
             }
+            InputStream in = new URL("https://github.com/jdevs-mc/HvsV/raw/refs/heads/main/schematics.zip").openStream();
+            String fullPath = path + "schematics.zip";
+            Path fp = Paths.get(fullPath);
+            Files.copy(in, fp, StandardCopyOption.REPLACE_EXISTING);
+            plugin.getUtils().unpack(fullPath, path);
+            Files.deleteIfExists(fp);
         } catch (Exception e) {
-            plugin.getLogger().warning("An error occurred when loading the schematics.");
+            plugin.getLogger().warning("An error occurred when loading the schematics. Check your internet connection.");
+            plugin.getLogger().warning("You can download the schematics and upload them to the server on the official page of the resource. (GitHub)");
             e.printStackTrace();
         }
-        plugin.getLogger().warning("You can download the schematics and upload them to the server on the official page of the resource.");
     }
     private void setupSettings() {
         ConfigurationSection settings = plugin.getConfig().getConfigurationSection("settings");
@@ -167,13 +135,13 @@ public class Values {
         spawns = settings.getString("spawns").split(" ");
         items = settings.getString("items").split(" ");
         hunters = settings.getString("hunters").split(" ");
-        map = settings.getStringList("map");
+        map.addAll(settings.getStringList("map"));
         ConfigurationSection game = settings.getConfigurationSection("game");
         if (game == null) {
             plugin.getLogger().warning("No section found in the configuration: settings.game");
             return;
         }
-        playersHun = game.getStringList("playersHun");
+        playersHun.addAll(game.getStringList("playersHun"));
         min_players = game.getInt("players.min");
         medium_players = game.getInt("players.medium");
         max_players = game.getInt("players.max");
@@ -188,7 +156,7 @@ public class Values {
         hunSpawn = game.getInt("role.hunter.spawn");
         vicDamage = ((double) 20 / hunHealth) * game.getInt("role.victim.damage") + 0.01;
         hunDamage = ((double) 20 / vicHealth) * game.getInt("role.hunter.damage") + 0.01;
-        if (!game.getStringList("items.exit.lore").isEmpty()) exitLore = game.getStringList("items.exit.lore");
+        if (!game.getStringList("items.exit.lore").isEmpty()) exitLore.addAll(game.getStringList("items.exit.lore"));
         axe = game.getString("items.victim.weapon");
         spawnAxe = game.getInt("items.victim.spawn");
         respawnAxe = game.getInt("items.victim.respawn");
@@ -212,8 +180,8 @@ public class Values {
             plugin.getLogger().warning("No section found in the configuration: messages.cmd");
             return;
         }
-        help = cmd.getStringList("help");
-        noperm = cmd.getStringList("noperm");
+        help.addAll(cmd.getStringList("help"));
+        noperm.addAll(cmd.getStringList("noperm"));
         ConfigurationSection game = messages.getConfigurationSection("game");
         if (game == null) {
             plugin.getLogger().warning("No section found in the configuration: messages.game");
@@ -229,33 +197,28 @@ public class Values {
         start = game.getString("status.start");
         win_victim = game.getString("status.win_victim");
         win_hunter = game.getString("status.win_hunter");
-        no = game.getStringList("actions.no");
-        kicked = game.getStringList("actions.kicked");
-        end = game.getStringList("actions.end");
-        join = game.getStringList("actions.join");
-        quit = game.getStringList("actions.quit");
-        role = game.getStringList("actions.role");
-        winhunt = game.getStringList("actions.win_hunter");
-        winvict = game.getStringList("actions.win_victim");
-        startAxe = game.getStringList("actions.startAxe");
-        listAxe = game.getStringList("actions.getAxe");
-        exitHun = game.getStringList("actions.exitHun");
-        killHunter = game.getStringList("actions.killHunter");
-        killVictim = game.getStringList("actions.killVictim");
+        no.addAll(game.getStringList("actions.no"));
+        kicked.addAll(game.getStringList("actions.kicked"));
+        end.addAll(game.getStringList("actions.end"));
+        join.addAll(game.getStringList("actions.join"));
+        quit.addAll(game.getStringList("actions.quit"));
+        role.addAll(game.getStringList("actions.role"));
+        winhunt.addAll(game.getStringList("actions.win_hunter"));
+        winvict.addAll(game.getStringList("actions.win_victim"));
+        startAxe.addAll(game.getStringList("actions.startAxe"));
+        listAxe.addAll(game.getStringList("actions.getAxe"));
+        exitHun.addAll(game.getStringList("actions.exitHun"));
+        killHunter.addAll(game.getStringList("actions.killHunter"));
+        killVictim.addAll(game.getStringList("actions.killVictim"));
     }
     private void clear() {
         schematics.clear();
+        enter.clear();
         category.clear();
         map.clear();
-        help.clear();
-        noperm.clear();
-        no.clear();
-        end.clear();
-        join.clear();
-        quit.clear();
-        role.clear();
-        winvict.clear();
-        winhunt.clear();
-        exitLore.clear();
+        maps.clear();
+        for (List<String> strings : Arrays.asList(help, noperm, no, end, join, quit, role, playersHun, winvict, startAxe, listAxe, winhunt, exitLore, exitHun, kicked, killVictim, killHunter)) {
+            strings.clear();
+        }
     }
 }
