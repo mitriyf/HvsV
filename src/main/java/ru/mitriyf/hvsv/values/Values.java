@@ -129,7 +129,11 @@ public class Values {
             return;
         }
         world = settings.getString("world");
-        x1 = coords.getInt("x1"); x2 = coords.getInt("x2"); y = coords.getInt("y"); z1 = coords.getInt("z1"); z2 = coords.getInt("z2");
+        x1 = coords.getInt("x1");
+        x2 = coords.getInt("x2");
+        y = coords.getInt("y");
+        z1 = coords.getInt("z1");
+        z2 = coords.getInt("z2");
         radius = settings.getInt("radius", 50);
         for (String s : settings.getConfigurationSection("category").getKeys(false)) category.put(s, settings.getString("category." + s));
         spawns = settings.getString("spawns").split(" ");
