@@ -67,7 +67,7 @@ public class Game {
     }
     public void addPlayer(Player p) {
         UUID uuid = p.getUniqueId();
-        values.getPlayers().put(uuid, new PlayerData(values, p, name));
+        values.getPlayers().put(uuid, new PlayerData(p, name));
         p.teleport(getSpawn(0));
         players.add(uuid);
         p.getInventory().clear();

@@ -6,11 +6,9 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import ru.mitriyf.hvsv.values.Values;
 
 @Getter
 public class PlayerData {
-    private final Values values;
     private final Player p;
     private final String game;
     private final Location loc;
@@ -21,8 +19,7 @@ public class PlayerData {
     private final double health;
     private final GameMode gamemode;
     private final float exp;
-    public PlayerData(Values values, Player p, String game) {
-        this.values = values;
+    public PlayerData(Player p, String game) {
         this.p = p;
         this.game = game;
         loc = p.getLocation();

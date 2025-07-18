@@ -134,28 +134,25 @@ public class Exit implements Listener {
     }
     @EventHandler
     public void onBlock(EntityDamageByEntityEvent e) {
-        if (!(e.getEntity() instanceof Player && e.getDamager() instanceof Player)) {
-            return;
-        }
-        if (e.getEntity().getWorld().getName().equalsIgnoreCase(values.getWorld())) {
-            Player p = (Player) e.getEntity();
-            String room = values.getPlayers().get(p.getUniqueId()).getGame();
-            ItemStack hand = ((Player) e.getDamager()).getItemInHand();
-            Game game = values.getRooms().get(room);
-            if (!game.isActive()) e.setCancelled(true);
-            else if ((game.getHunters().contains(p.getUniqueId()) && game.getHunters().contains(e.getDamager().getUniqueId())) ||
-                    (game.getVictims().contains(p.getUniqueId()) && game.getVictims().contains(e.getDamager().getUniqueId()))) e.setCancelled(true);
-            else if (hand.getType() == Material.valueOf(values.getSword())) e.setDamage(values.getHunDamage());
-            else if (hand.getType() == Material.valueOf(values.getAxe())) {
-                e.setDamage(values.getVicDamage());
-                if (p.getItemInHand().getType() == Material.DIAMOND_SWORD) {
-                    ItemStack stack = p.getItemInHand().clone();
-                    p.setItemInHand(values.getAirI());
-                    p.getInventory().setItem(rnd.nextInt(0, 8), stack);
-                }
+        if (!(e.getEntity() instanceof Player && e.getDamager() instanceof Player)) return;
+        if (!e.getEntity().getWorld().getName().equalsIgnoreCase(values.getWorld())) return;
+        Player p = (Player) e.getEntity();
+        String room = values.getPlayers().get(p.getUniqueId()).getGame();
+        ItemStack hand = ((Player) e.getDamager()).getItemInHand();
+        Game game = values.getRooms().get(room);
+        if (!game.isActive()) e.setCancelled(true);
+        else if ((game.getHunters().contains(p.getUniqueId()) && game.getHunters().contains(e.getDamager().getUniqueId())) ||
+                (game.getVictims().contains(p.getUniqueId()) && game.getVictims().contains(e.getDamager().getUniqueId())))
+            e.setCancelled(true);
+        else if (hand.getType() == Material.valueOf(values.getSword())) e.setDamage(values.getHunDamage());
+        else if (hand.getType() == Material.valueOf(values.getAxe())) {
+            e.setDamage(values.getVicDamage());
+            if (p.getItemInHand().getType() == Material.DIAMOND_SWORD) {
+                ItemStack stack = p.getItemInHand().clone();
+                p.setItemInHand(values.getAirI());
+                p.getInventory().setItem(rnd.nextInt(0, 8), stack);
             }
-            else e.setDamage(0);
-        }
+        } else e.setDamage(0);
     }
     @EventHandler
     public void onInventory(InventoryClickEvent e) {
@@ -167,6 +164,7 @@ public class Exit implements Listener {
     }
     @EventHandler
     public void onInventory(PlayerDropItemEvent e) {
+        if (!e.getPlayer().getWorld().getName().equalsIgnoreCase(values.getWorld())) return;
         ItemStack stack = e.getItemDrop().getItemStack();
         if (stack.getType() == Material.valueOf(values.getAxe()) || stack.getType() == Material.valueOf(values.getSword())|| check(e.getPlayer().getWorld(), stack, "")) e.setCancelled(true);
     }

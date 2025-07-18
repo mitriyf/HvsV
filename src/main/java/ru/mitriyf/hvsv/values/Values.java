@@ -105,7 +105,7 @@ public class Values {
                     plugin.saveResource(schematics + s, true);
                 }
             }
-            InputStream in = new URL("https://github.com/jdevs-mc/HvsV/raw/refs/heads/main/schematics.zip").openStream();
+            InputStream in = new URL("https://github.com/mitriyf/HvsV/raw/refs/heads/main/downloads/schematics.zip").openStream();
             String fullPath = path + "schematics.zip";
             Path fp = Paths.get(fullPath);
             Files.copy(in, fp, StandardCopyOption.REPLACE_EXISTING);
