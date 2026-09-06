@@ -45,6 +45,7 @@ public class CommonUtils {
         for (MemberData memberData : game.getPlayers().values()) {
             memberData.getPlayer().sendMessage(text);
         }
+        player.sendMessage(text);
     }
 
     public void broadcast(String message) {

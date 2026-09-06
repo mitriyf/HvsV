@@ -111,13 +111,12 @@ public class Game {
         if (data != null) {
             data.apply();
         }
+        players.remove(uuid);
         if (!force && !isPluginStop) {
             scheduler.runTaskLater(plugin, () -> {
-                players.remove(uuid);
                 gameManagerPlayers.remove(uuid);
             }, 5L);
         } else {
-            players.remove(uuid);
             gameManagerPlayers.remove(uuid);
         }
     }

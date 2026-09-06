@@ -45,8 +45,8 @@ messages:
     # You cannot use actions in statuses, role and placeholders.
     status:
       wait: "&fLaunching via: &e%time% &fsec."
-      start: "&fUntil the end of the game: &e%time%"
-      stopped: "&fTo start, you need to: &e%min_players%"
+      start: "&fLeft: &e%time%"
+      stopped: "&fPlayers needed: &e%min_players%"
       winVictim: "&aThe victims have won!"
       winHunter: "&cThe hunters have won!"
     role:

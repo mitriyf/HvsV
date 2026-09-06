@@ -45,8 +45,8 @@ messages:
     # Du kannst keine Aktionen (actions) in Status, Rollen und Platzhaltern verwenden.
     status:
       wait: "&fStart in: &e%time% &fSek."
-      start: "&fBis zum Ende des Spiels: &e%time%"
-      stopped: "&fZum Starten benötigte Spieler: &e%min_players%"
+      start: "&fVerbleibend: &e%time%"
+      stopped: "&fBenötigte Spieler: &e%min_players%"
       winVictim: "&aDie Opfer haben gewonnen!"
       winHunter: "&cDie Jäger haben gewonnen!"
     role:
