@@ -1,228 +1,468 @@
 package ru.mitriyf.hvsv.values;
 
+import com.google.common.collect.ImmutableList;
 import lombok.Getter;
 import lombok.Setter;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import ru.mitriyf.hvsv.HvsV;
-import ru.mitriyf.hvsv.game.Game;
-import ru.mitriyf.hvsv.values.player.PlayerData;
+import ru.mitriyf.hvsv.model.ItemStackData;
+import ru.mitriyf.hvsv.model.MapData;
+import ru.mitriyf.hvsv.updater.Updater;
+import ru.mitriyf.hvsv.utils.Utils;
+import ru.mitriyf.hvsv.utils.actions.Action;
+import ru.mitriyf.hvsv.utils.actions.ActionType;
+import ru.mitriyf.hvsv.utils.colors.Colorizer;
+import ru.mitriyf.hvsv.utils.colors.impl.LegacyColorizer;
+import ru.mitriyf.hvsv.utils.colors.impl.MiniMessageColorizer;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Getter
 @Setter
 public class Values {
     private final HvsV plugin;
-    private final Map<String, Game> rooms = new HashMap<>();
-    private final Map<UUID, PlayerData> players = new HashMap<>();
-    private final Map<String, List<String>> schematics = new HashMap<>();
-    private final Map<String, List<String>> enter = new HashMap<>();
+    private final Logger logger;
+    private final File slotsFile;
+    private final Updater updater;
+    private final File dataFolder;
+    private final File configFile;
+    private final ItemStack airStack;
+    private final String schematicsDir = "schematics/";
     private final List<String> maps = new ArrayList<>();
-    private final Map<String, String> category = new HashMap<>();
-    private final List<String> map = new ArrayList<>();
-    private final List<String> no = new ArrayList<>();
-    private final List<String> join = new ArrayList<>();
-    private final List<String> quit = new ArrayList<>();
-    private final List<String> end = new ArrayList<>();
-    private final List<String> role = new ArrayList<>();
-    private final List<String> winvict = new ArrayList<>();
-    private final List<String> winhunt = new ArrayList<>();
-    private final List<String> playersHun = new ArrayList<>();
-    private final List<String> exitLore = new ArrayList<>();
-    private final List<String> startAxe = new ArrayList<>();
-    private final List<String> listAxe = new ArrayList<>();
-    private final List<String> exitHun = new ArrayList<>();
-    private final List<String> help = new ArrayList<>();
-    private final List<String> noperm = new ArrayList<>();
-    private final List<String> killVictim = new ArrayList<>();
-    private final List<String> killHunter = new ArrayList<>();
-    private final List<String> kicked = new ArrayList<>();
-    private ItemStack axeI, swordI, helmetI, airI, exitI;
-    private String[] spawns, items, hunters;
-    private String world, notfound, started, connect, victim, hunter, stopped, wait, start, win_victim, win_hunter, exitName, exitMaterial, axe, sword, helmet;
-    private int radius, vicHealth, hunHealth, x1, x2, y, z1, z2, hunSpawn, spawnAxe, respawnAxe;
-    private double vicDamage, hunDamage, alocX, alocY, alocZ, afaceX, afaceY, afaceZ;
-    private int min_players, medium_players, max_players, minTime, mediumTime, maxTime, endTime;
+    private final String[] files = new String[]{"hello.txt"};
+    private final Map<String, String> sWait = new HashMap<>();
+    private final Map<String, String> sStart = new HashMap<>();
+    private final Map<String, String> sStopped = new HashMap<>();
+    private final Map<String, List<Action>> end = new HashMap<>();
+    private final Map<String, String> sWinVictim = new HashMap<>();
+    private final Map<String, String> sWinHunter = new HashMap<>();
+    private final Map<String, String> victimName = new HashMap<>();
+    private final Map<String, String> hunterName = new HashMap<>();
+    private final Map<String, List<Action>> exit = new HashMap<>();
+    private final Map<String, List<Action>> join = new HashMap<>();
+    private final Map<String, List<Action>> role = new HashMap<>();
+    private final Map<String, List<Action>> help = new HashMap<>();
+    private final Map<String, List<Action>> quit = new HashMap<>();
+    private final Map<String, MapData> schematics = new HashMap<>();
+    private final Map<String, List<Action>> noperm = new HashMap<>();
+    private final Map<String, List<Action>> getAxe = new HashMap<>();
+    private final Map<String, List<Action>> kicked = new HashMap<>();
+    private final Map<String, List<Action>> waiter = new HashMap<>();
+    private final Map<String, List<Action>> noExit = new HashMap<>();
+    private final Map<String, List<Action>> inGame = new HashMap<>();
+    private final Map<String, List<Action>> winvict = new HashMap<>();
+    private final Map<String, List<Action>> winhunt = new HashMap<>();
+    private final Map<String, List<Action>> exitHun = new HashMap<>();
+    private final Map<String, List<Action>> connect = new HashMap<>();
+    private final Map<String, List<Action>> started = new HashMap<>();
+    private final Map<String, List<Action>> exitLore = new HashMap<>();
+    private final Map<String, List<Action>> startAxe = new HashMap<>();
+    private final Map<String, List<Action>> notfound = new HashMap<>();
+    private final Map<String, List<Action>> killVictim = new HashMap<>();
+    private final Map<String, List<Action>> killHunter = new HashMap<>();
+    private final String[] lcs = new String[]{"de_DE", "en_US", "ru_RU"};
+    private final Map<Integer, ItemStackData> hunterSlots = new HashMap<>();
+    private final Map<Integer, ItemStackData> victimSlots = new HashMap<>();
+    private final Map<Integer, ItemStackData> defaultSlots = new HashMap<>();
+    private final Pattern action_pattern = Pattern.compile("\\[(\\w+)] ?(.*)");
+    private boolean deleteWhenClosing, placeholderAPI, locale, miniMessage, damageWaiters;
+    private boolean updaterEnabled = true, required = true, release = false;
+    private ConfigurationSection settings;
+    @Setter
+    private FileConfiguration itemSlots;
+    private FileConfiguration config;
+    private String world, worldStart;
+    @Setter
+    private String defaultId = "";
+    @Setter
+    private String schematicUrl;
+    private Colorizer colorizer;
+    private Utils utils;
+    private int amount;
+
     public Values(HvsV plugin) {
         this.plugin = plugin;
+        updater = new Updater(plugin, this);
+        dataFolder = plugin.getDataFolder();
+        configFile = new File(dataFolder, "config.yml");
+        slotsFile = new File(dataFolder, "slots.yml");
+        logger = plugin.getLogger();
+        airStack = new ItemStack(Material.AIR);
+        try {
+            Class.forName("net.kyori.adventure.text.minimessage.MiniMessage");
+            miniMessage = true;
+        } catch (Exception e) {
+            miniMessage = false;
+        }
     }
-    public void setup() {
+
+    public void setup(boolean onlineUpdates) {
+        getConfigurations();
+        updater.checkUpdates(onlineUpdates);
+        loadConfigurations();
+        utils = plugin.getUtils();
         clear();
-        setupSettings();
-        setupMessages();
+        setupSettings(onlineUpdates);
+        setupLocales();
         setupSchematics();
+        plugin.getSupports().register();
     }
+
+    private void getConfigurations() {
+        saveConfig("config", configFile, true);
+        saveConfig("slots", slotsFile, false);
+        loadConfigurations();
+        if (settings == null) {
+            return;
+        }
+        ConfigurationSection updater = settings.getConfigurationSection("updater");
+        if (updater == null) {
+            return;
+        }
+        updaterEnabled = updater.getBoolean("enabled");
+        ConfigurationSection updaterSettings = updater.getConfigurationSection("settings");
+        if (updaterSettings == null) {
+            return;
+        }
+        required = updaterSettings.getBoolean("required");
+        release = updaterSettings.getBoolean("release");
+    }
+
+    private void loadConfigurations() {
+        config = YamlConfiguration.loadConfiguration(configFile);
+        itemSlots = YamlConfiguration.loadConfiguration(slotsFile);
+        settings = config.getConfigurationSection("settings");
+    }
+
     private void setupSchematics() {
-        File dir = new File(plugin.getDataFolder(), "schematics");
+        File dir = new File(dataFolder, "schematics");
         if (!dir.exists()) {
-            plugin.getLogger().warning("No schematics were found. I'm starting an attempt to download schematics from the plugin...");
-            dir.mkdir();
+            logger.warning("No schematics were found. I'm starting an attempt to download schematics from the plugin...");
+            if (dir.mkdir()) {
+                logger.info("The folder has been created.");
+            }
             try {
                 exportSchematics();
-                plugin.getLogger().info("The download has been completed successfully.");
+                logger.info("The download has been completed successfully.");
             } catch (Exception e) {
-                plugin.getLogger().warning("A critical error.");
-                throw new RuntimeException(e);
+                logger.warning("A critical error. Error: " + e);
             }
         }
-        for (File fl : dir.listFiles()) {
-            if (!fl.isDirectory()) continue;
-            for (File fls : fl.listFiles()) {
-                if (!fls.isDirectory()) continue;
-                String dirName = "schematics/" + fl.getName() + "/" + fls.getName();
-                maps.add(fl.getName());
-                for (File flis : fls.listFiles()) {
-                    if (flis.getName().contains("schem")) {
-                        schematics.computeIfAbsent(dirName, map -> new ArrayList<>()).add(flis.getName());
-                    } else if (flis.isDirectory() && flis.listFiles() != null) {
-                        enter.computeIfAbsent(dirName, map -> new ArrayList<>()).add(flis.getName());
-                        String end = "schematics/" + fl.getName() + "/" + fls.getName() + "/" + flis.getName();
-                        for (File flim : flis.listFiles()) {
-                            if (flim.getName().contains("schem")) {
-                                schematics.computeIfAbsent(end, map -> new ArrayList<>()).add(flim.getName());
-                            }
-                        }
+        File[] files = dir.listFiles();
+        if (files == null) {
+            logger.warning("No maps were found in the schematics folder.");
+        } else {
+            for (File mapFile : files) {
+                if (!mapFile.isDirectory()) {
+                    continue;
+                }
+                String mapName = mapFile.getName();
+                String id = mapName.toLowerCase();
+                if (id.equals("backups")) {
+                    continue;
+                }
+                File file = new File(dir, mapName + ".yml");
+                if (!file.exists()) {
+                    plugin.saveResource(schematicsDir + "default.yml", true);
+                    if (new File(dir, "default.yml").renameTo(file)) {
+                        logger.info("The configuration file " + file.getName() + " has been created");
+                    } else {
+                        logger.warning("An error occurred while creating the " + file.getName() + " configuration file");
+                        return;
                     }
                 }
+                maps.add(id);
+                schematics.put(id, new MapData(this, YamlConfiguration.loadConfiguration(file), mapFile, id));
             }
         }
     }
+
     private void exportSchematics() {
-        String[] files = new String[] {"hello.txt"};
-        String schematics = "schematics/";
-        String path = plugin.getDataFolder() + "/" + schematics;
+        String path = dataFolder + "/" + schematicsDir;
         try {
             for (String s : files) {
                 String fullPath = path + s;
                 if (!(new File(fullPath)).exists()) {
-                    plugin.saveResource(schematics + s, true);
+                    plugin.saveResource(schematicsDir + s, true);
                 }
             }
-            InputStream in = new URL("https://github.com/jdevs-mc/HvsV/raw/refs/heads/main/schematics.zip").openStream();
-            String fullPath = path + "schematics.zip";
+            InputStream in = new URL("https://github.com/mitriyf/HvsV/raw/refs/heads/main/downloads/" + schematicUrl).openStream();
+            String fullPath = path + schematicUrl;
             Path fp = Paths.get(fullPath);
             Files.copy(in, fp, StandardCopyOption.REPLACE_EXISTING);
-            plugin.getUtils().unpack(fullPath, path);
+            in.close();
+            unpack(fullPath, path);
             Files.deleteIfExists(fp);
         } catch (Exception e) {
-            plugin.getLogger().warning("An error occurred when loading the schematics. Check your internet connection.");
-            plugin.getLogger().warning("You can download the schematics and upload them to the server on the official page of the resource. (GitHub)");
-            e.printStackTrace();
+            logger.warning("An error occurred when loading the schematics. Check your internet connection.");
+            logger.warning("You can download the schematics and upload them to the server on the official page of the resource. (GitHub)");
         }
     }
-    private void setupSettings() {
-        ConfigurationSection settings = plugin.getConfig().getConfigurationSection("settings");
-        if (settings == null) {
-            plugin.getLogger().warning("No section found in the configuration: settings");
-            return;
+
+    private void setupSettings(boolean recovery) {
+        String translate = settings.getString("translate").toLowerCase();
+        if (miniMessage && translate.equalsIgnoreCase("minimessage")) {
+            colorizer = new MiniMessageColorizer();
+        } else {
+            colorizer = new LegacyColorizer();
         }
-        ConfigurationSection coords = settings.getConfigurationSection("coords");
-        if (coords == null) {
-            plugin.getLogger().warning("No section found in the configuration: settings.coords");
-            return;
+        locale = settings.getBoolean("locales");
+        ConfigurationSection games = settings.getConfigurationSection("games");
+        world = games.getString("world");
+        amount = games.getInt("amount");
+        damageWaiters = games.getBoolean("damageWaiters");
+        deleteWhenClosing = games.getBoolean("deleteWhenClosing");
+        worldStart = world.replace("XIDX", "");
+        ConfigurationSection supports = settings.getConfigurationSection("supports");
+        placeholderAPI = supports.getBoolean("placeholderAPI");
+        if (placeholderAPI && plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") == null) {
+            logger.warning("The PlaceholderAPI was not detected. This feature will be disabled.");
+            placeholderAPI = false;
         }
-        world = settings.getString("world");
-        x1 = coords.getInt("x1");
-        x2 = coords.getInt("x2");
-        y = coords.getInt("y");
-        z1 = coords.getInt("z1");
-        z2 = coords.getInt("z2");
-        radius = settings.getInt("radius", 50);
-        for (String s : settings.getConfigurationSection("category").getKeys(false)) category.put(s, settings.getString("category." + s));
-        spawns = settings.getString("spawns").split(" ");
-        items = settings.getString("items").split(" ");
-        hunters = settings.getString("hunters").split(" ");
-        map.addAll(settings.getStringList("map"));
-        ConfigurationSection game = settings.getConfigurationSection("game");
-        if (game == null) {
-            plugin.getLogger().warning("No section found in the configuration: settings.game");
-            return;
+        generateSlots();
+        if (recovery) {
+            recovery();
         }
-        playersHun.addAll(game.getStringList("playersHun"));
-        min_players = game.getInt("players.min");
-        medium_players = game.getInt("players.medium");
-        max_players = game.getInt("players.max");
-        minTime = game.getInt("waitTime.min");
-        mediumTime = game.getInt("waitTime.medium");
-        maxTime = game.getInt("waitTime.max");
-        endTime = game.getInt("endTime", 241);
-        exitName = game.getString("items.exit.name");
-        exitMaterial = game.getString("items.exit.material");
-        vicHealth = game.getInt("role.victim.health");
-        hunHealth = game.getInt("role.hunter.health");
-        hunSpawn = game.getInt("role.hunter.spawn");
-        vicDamage = ((double) 20 / hunHealth) * game.getInt("role.victim.damage") + 0.01;
-        hunDamage = ((double) 20 / vicHealth) * game.getInt("role.hunter.damage") + 0.01;
-        if (!game.getStringList("items.exit.lore").isEmpty()) exitLore.addAll(game.getStringList("items.exit.lore"));
-        axe = game.getString("items.victim.weapon");
-        spawnAxe = game.getInt("items.victim.spawn");
-        respawnAxe = game.getInt("items.victim.respawn");
-        sword = game.getString("items.hunter.weapon");
-        helmet = game.getString("items.hunter.helmet");
-        alocX = game.getDouble("armorstand.loc.x");
-        alocY = game.getDouble("armorstand.loc.y");
-        alocZ = game.getDouble("armorstand.loc.z");
-        afaceX = game.getDouble("armorstand.rightFace.x");
-        afaceY = game.getDouble("armorstand.rightFace.y");
-        afaceZ = game.getDouble("armorstand.rightFace.z");
     }
-    private void setupMessages() {
-        ConfigurationSection messages = plugin.getConfig().getConfigurationSection("messages");
-        if (messages == null) {
-            plugin.getLogger().warning("No section found in the configuration: messages");
-            return;
+
+    private void generateSlots() {
+        ConfigurationSection defaultSlotsSection = itemSlots.getConfigurationSection("default");
+        if (defaultSlotsSection == null) {
+            defaultSlotsSection = itemSlots.createSection("default");
         }
-        ConfigurationSection cmd = messages.getConfigurationSection("cmd");
-        if (cmd == null) {
-            plugin.getLogger().warning("No section found in the configuration: messages.cmd");
-            return;
-        }
-        help.addAll(cmd.getStringList("help"));
-        noperm.addAll(cmd.getStringList("noperm"));
-        ConfigurationSection game = messages.getConfigurationSection("game");
-        if (game == null) {
-            plugin.getLogger().warning("No section found in the configuration: messages.game");
-            return;
-        }
-        notfound = game.getString("room.notfound");
-        started = game.getString("room.started");
-        connect = game.getString("room.connect");
-        victim = game.getString("role.victim");
-        hunter = game.getString("role.hunter");
-        stopped = game.getString("status.stopped");
-        wait = game.getString("status.wait");
-        start = game.getString("status.start");
-        win_victim = game.getString("status.win_victim");
-        win_hunter = game.getString("status.win_hunter");
-        no.addAll(game.getStringList("actions.no"));
-        kicked.addAll(game.getStringList("actions.kicked"));
-        end.addAll(game.getStringList("actions.end"));
-        join.addAll(game.getStringList("actions.join"));
-        quit.addAll(game.getStringList("actions.quit"));
-        role.addAll(game.getStringList("actions.role"));
-        winhunt.addAll(game.getStringList("actions.win_hunter"));
-        winvict.addAll(game.getStringList("actions.win_victim"));
-        startAxe.addAll(game.getStringList("actions.startAxe"));
-        listAxe.addAll(game.getStringList("actions.getAxe"));
-        exitHun.addAll(game.getStringList("actions.exitHun"));
-        killHunter.addAll(game.getStringList("actions.killHunter"));
-        killVictim.addAll(game.getStringList("actions.killVictim"));
+        generateSlotRole(defaultSlotsSection, "player", defaultSlots);
+        generateSlotRole(defaultSlotsSection, "victim", victimSlots);
+        generateSlotRole(defaultSlotsSection, "hunter", hunterSlots);
     }
+
+    public void generateSlotRole(ConfigurationSection defaultSlots, String sectionName, Map<Integer, ItemStackData> itemStackDataMap) {
+        ConfigurationSection itemSection = defaultSlots.getConfigurationSection(sectionName);
+        if (itemSection == null) {
+            itemSection = defaultSlots.createSection(sectionName);
+        }
+        for (String s : itemSection.getKeys(false)) {
+            ConfigurationSection slot = itemSection.getConfigurationSection(s);
+            ItemStack stack = setItemData(slot);
+            ItemStackData itemStackData = new ItemStackData(stack);
+            itemStackData.setExit(slot.getBoolean("exit"));
+            itemStackData.setWeapon(slot.getBoolean("weapon"));
+            itemStackDataMap.put(slot.getInt("slot"), itemStackData);
+        }
+    }
+
+    private void setupLocales() {
+        Map<String, FileConfiguration> locales = new HashMap<>();
+        locales.put("", config);
+        if (locale) {
+            File file = new File(dataFolder, "locales");
+            if (!file.exists()) {
+                for (String s : lcs) {
+                    plugin.saveResource("locales/" + s + ".yml", false);
+                }
+            }
+            File[] dir = file.listFiles();
+            if (dir == null) {
+                logger.warning("Locales are empty.");
+            } else {
+                for (File f : dir) {
+                    if (f.isFile()) {
+                        String name = f.getName();
+                        locales.put(name.substring(0, name.indexOf(".")).toLowerCase(), YamlConfiguration.loadConfiguration(f));
+                    }
+                }
+            }
+        }
+        for (Map.Entry<String, FileConfiguration> entry : locales.entrySet()) {
+            ConfigurationSection messages = entry.getValue().getConfigurationSection("messages");
+            String name = entry.getKey();
+            ConfigurationSection game = messages.getConfigurationSection("game");
+            ConfigurationSection status = game.getConfigurationSection("status");
+            setupStatusSection(name, status);
+            ConfigurationSection role = game.getConfigurationSection("role");
+            setupRoleSection(name, role);
+            ConfigurationSection actions = game.getConfigurationSection("actions");
+            ConfigurationSection commandSection = actions.getConfigurationSection("command");
+            setupCommandSection(name, commandSection);
+            ConfigurationSection roomSection = actions.getConfigurationSection("room");
+            setupRoomSection(name, roomSection);
+            ConfigurationSection gameSection = actions.getConfigurationSection("game");
+            setupGameSection(name, gameSection);
+        }
+    }
+
+    private void setupStatusSection(String name, ConfigurationSection statusSection) {
+        sWait.put(name, statusSection.getString("wait"));
+        sStart.put(name, statusSection.getString("start"));
+        sStopped.put(name, statusSection.getString("stopped"));
+        sWinVictim.put(name, statusSection.getString("winVictim"));
+        sWinHunter.put(name, statusSection.getString("winHunter"));
+    }
+
+    private void setupRoleSection(String name, ConfigurationSection roleSection) {
+        victimName.put(name, roleSection.getString("victim"));
+        hunterName.put(name, roleSection.getString("hunter"));
+    }
+
+    private void setupCommandSection(String name, ConfigurationSection commandSection) {
+        help.put(name, getActionList(commandSection.getStringList("help")));
+        noperm.put(name, getActionList(commandSection.getStringList("noperm")));
+    }
+
+    private void setupRoomSection(String name, ConfigurationSection roomSection) {
+        notfound.put(name, getActionList(roomSection.getStringList("notfound")));
+        started.put(name, getActionList(roomSection.getStringList("started")));
+        connect.put(name, getActionList(roomSection.getStringList("connect")));
+        exit.put(name, getActionList(roomSection.getStringList("exit")));
+        waiter.put(name, getActionList(roomSection.getStringList("waiter")));
+        noExit.put(name, getActionList(roomSection.getStringList("noExit")));
+    }
+
+    private void setupGameSection(String name, ConfigurationSection gameSection) {
+        inGame.put(name, getActionList(gameSection.getStringList("inGame")));
+        kicked.put(name, getActionList(gameSection.getStringList("kicked")));
+        end.put(name, getActionList(gameSection.getStringList("end")));
+        join.put(name, getActionList(gameSection.getStringList("join")));
+        quit.put(name, getActionList(gameSection.getStringList("quit")));
+        role.put(name, getActionList(gameSection.getStringList("role")));
+        killHunter.put(name, getActionList(gameSection.getStringList("killHunter")));
+        killVictim.put(name, getActionList(gameSection.getStringList("killVictim")));
+        exitHun.put(name, getActionList(gameSection.getStringList("exitHun")));
+        startAxe.put(name, getActionList(gameSection.getStringList("startAxe")));
+        getAxe.put(name, getActionList(gameSection.getStringList("getAxe")));
+        winhunt.put(name, getActionList(gameSection.getStringList("winHunter")));
+        winvict.put(name, getActionList(gameSection.getStringList("winVictim")));
+    }
+
+    private void recovery() {
+        File dir = plugin.getServer().getWorldContainer().getAbsoluteFile();
+        File[] list = dir.listFiles();
+        if (list == null) {
+            return;
+        }
+        for (File file : list) {
+            if (file.getName().startsWith(worldStart)) {
+                deleteDirectory(new File(file.getName()));
+            }
+        }
+    }
+
+    public void deleteDirectory(File f) {
+        File[] files = f.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    delete(file);
+                }
+            }
+            delete(f);
+        }
+    }
+
+    private ItemStack setItemData(ConfigurationSection slot) {
+        return utils.generateItem(slot);
+    }
+
+    private void saveConfig(String configName, File file, boolean ignoreVersion) {
+        if (file.exists()) {
+            return;
+        }
+        String resource = configName + (ignoreVersion ? "" : defaultId) + ".yml";
+        try {
+            plugin.saveResource(resource, true);
+            if (!defaultId.isEmpty()) {
+                Path oldCfg = new File(dataFolder, resource).toPath();
+                Files.move(oldCfg, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Exception e) {
+            logger.warning("Error save configurations. Error: " + e);
+        }
+    }
+
+    private Action fromString(String str) {
+        Matcher matcher = action_pattern.matcher(str);
+        if (!matcher.matches()) {
+            return new Action(ActionType.MESSAGE, str);
+        }
+        ActionType type;
+        try {
+            type = ActionType.valueOf(matcher.group(1).toUpperCase());
+        } catch (IllegalArgumentException e) {
+            type = ActionType.MESSAGE;
+            return new Action(type, str);
+        }
+        return new Action(type, matcher.group(2).trim());
+    }
+
+    private void unpack(String zip, String dir) throws IOException {
+        Path destDirPath = Paths.get(dir);
+        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(Paths.get(zip)))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                Path filePath = destDirPath.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(filePath);
+                } else {
+                    Files.createDirectories(filePath.getParent());
+                    Files.copy(zipInputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                zipInputStream.closeEntry();
+            }
+        }
+    }
+
+    public List<Action> getActionList(List<String> actionStrings) {
+        ImmutableList.Builder<Action> actionListBuilder = ImmutableList.builder();
+        for (String actionString : actionStrings) {
+            actionListBuilder.add(fromString(actionString));
+        }
+        return actionListBuilder.build();
+    }
+
     private void clear() {
+        if (plugin.getSupports() != null) {
+            plugin.getSupports().unregister();
+        }
         schematics.clear();
-        enter.clear();
-        category.clear();
-        map.clear();
         maps.clear();
-        for (List<String> strings : Arrays.asList(help, noperm, no, end, join, quit, role, playersHun, winvict, startAxe, listAxe, winhunt, exitLore, exitHun, kicked, killVictim, killHunter)) {
-            strings.clear();
+        hunterSlots.clear();
+        victimSlots.clear();
+        defaultSlots.clear();
+        for (Map<String, List<Action>> actions : Arrays.asList(help, noperm, end, join, quit, role, winvict, startAxe, winhunt, exitLore, exitHun, kicked, killVictim, killHunter)) {
+            actions.clear();
+        }
+    }
+
+    public void backupConfig(String parentPath, File file, String oldVersion) throws IOException {
+        File copied = new File(dataFolder, parentPath + "backups/" + file.getName() + "-" + oldVersion + ".backup");
+        Path copiedPath = copied.toPath();
+        Files.createDirectories(copied.getParentFile().toPath());
+        Files.deleteIfExists(copiedPath);
+        Files.copy(file.toPath(), copiedPath);
+    }
+
+    public void delete(File f) {
+        try {
+            Files.delete(f.toPath());
+        } catch (IOException ignored) {
         }
     }
 }

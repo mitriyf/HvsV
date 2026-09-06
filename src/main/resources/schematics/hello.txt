@@ -1,3 +1,5 @@
 Hello!
+Привет!
 
-Вставьте в папку, где расположен этот файл схематики.
+Insert the schematics into this folder, following the instructions from the configuration.
+Вставьте в эту папку схематики, следуя инструкциям из конфигурации.

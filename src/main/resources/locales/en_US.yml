@@ -1,57 +1,6 @@
-###########################################################
-#                          HvsV                           #
-#                          v1.3                           #
-###########################################################
-
-# You can find documentation or help about the plugin here: https://github.com/mitriyf/HvsV
-# Or: https://vk.com/jdevs
-
 # Don't remove the version setting.
 version: 1.3
 
-settings:
-  # Insert hex or minimessage.
-  # minimessage - for Paper, 1.18+.
-  # hex - It works starting from version 1.16.5, but if your server is lower than this version, do not change anything.
-  # It will also work on lower versions, but without displaying the correct colors
-  translate: hex
-  # You can find out the language code by clicking on the link below and looking at the In-Game section.
-  # https://minecraft.fandom.com/wiki/Language#Languages
-  # Or you can find out your language code by running the command (don't forget to change the language on the client):
-  # /hvsv admin locale - Get the client's language code.
-  # You can configure locales in the plugin folder where the locales. The folder will be created when you enable locales
-  # in the plugin configuration. You can create your own files.
-  # Set true to enable locales for messages.
-  locales: false
-  # Game settings.
-  games:
-    # XIDX is the world's ID.
-    # Worlds are deleted after the next launch.
-    world: "hvsv-XIDX"
-    # Enter the maximum number of worlds that the plugin can use.
-    # If the worlds are full, the player will be put in a queue and wait for any available server.
-    amount: 999
-    # Can people get hurt while waiting for free play? (false - no, true - yes)
-    damageWaiters: false
-    # Is it possible to delete the map after the game ends?
-    # Set it to false if you are concerned about errors in the game console.
-    # When set to true, it may cause server crashes! The plugin automatically deletes worlds after launch.
-    deleteWhenClosing: false
-  # Notification of updates.
-  updater:
-    # Is it enabled?
-    # Updates are checked when the plugin is enabled.
-    enabled: true
-    # Auto-update settings.
-    settings:
-      # Enable this to update only critical updates.
-      required: true
-      # Enable this feature to update the plugin with any new versions.
-      release: false
-  # Plugin supports.
-  supports:
-    # Enable PlaceholderAPI support.
-    placeholderAPI: false
 # Messages.
 messages:
   # Actions:
@@ -96,8 +45,8 @@ messages:
     # You cannot use actions in statuses, role and placeholders.
     status:
       wait: "&fLaunching via: &e%time% &fsec."
-      start: "&fLeft: &e%time%"
-      stopped: "&fPlayers needed: &e%min_players%"
+      start: "&fUntil the end of the game: &e%time%"
+      stopped: "&fTo start, you need to: &e%min_players%"
       winVictim: "&aThe victims have won!"
       winHunter: "&cThe hunters have won!"
     role:
@@ -153,7 +102,7 @@ messages:
           - "[message] &fThe hunter &c%hunter%&f, &ckilled&f the victim &a%victim%"
         exitHun:
           - "[message] &cThe hunters &fhave broken free from their confinement!"
-          - "[title] &cThe hunters;&cThey're out!"
+          - "[title] &cThe hunters;&аThey're out!"
         startAxe:
           - "[message] &aAxe&f appeared!"
           - "[title] &aAxe;&fappeared!"

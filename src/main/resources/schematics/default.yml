@@ -1,0 +1,183 @@
+# Don't remove the version setting.
+version: '1.3'
+
+# Specify the name of the map. It will be displayed in the Scoreboard.
+schematic:
+  name: '&fDefault'
+  # Coordinates of the schematic insertion.
+  coords:
+    x: 0
+    y: 100
+    z: 0
+  # N - Spawn Location.
+  category:
+    A: "alt"
+    H: "hause"
+    T: "weapon"
+    X: "spawn"
+    N: "no"
+  # Following the example of generating a map via space, you can add spawns for schematic categories.
+  spawns: "N"
+  # Where the hatchet will spawn, just like through the spawns.
+  items: "T"
+  # The locations where hunters will spawn.
+  hunters: "X"
+  # Set up the map generation:
+  map:
+    - "X N H"
+    - "N T N"
+    - "A N H"
+  # Specify whether to insert air blocks into the schematic.
+  # The default value is false, as it does not work correctly with the editor in newer versions.
+  pasteAir: false
+  # GameRules.
+  # GameRule:Value
+  gameRules:
+    - randomTickSpeed:0
+game:
+  # Online, at which it is permissible to start the game.
+  players:
+    min: 3
+    medium: 5
+    max: 8
+  # Online waiting times are higher. In second.
+  waitTime:
+    min: 60
+    medium: 30
+    max: 1
+  # How many seconds after the start will the game end?
+  endTime: 241
+  # Here is the list of the number of players and the number of hunters. PLAYERS:HUNTERS (Players — online on the map).
+  # Start with the larger one, then move to the lower one online.
+  playersHun:
+    - "8:3"
+    - "5:2"
+    - "3:1"
+  # Role.
+  role:
+    victim:
+      # 20 - all 10 hearts. 6 - 3 hearts.
+      health: 6
+      # Damage that the victim can deal to the hunter. 2 - 1 heart.
+      damage: 2
+      # If the victim hits the hunter with an axe, the sword in the hunter’s hand will change its slot.
+      hitHunterInventory: true
+      # Manage the location of the role.
+      spawnLocation:
+        # Specify the minimum and maximum offsetX values separated by ;
+        # Example: -3;3
+        offsetX: "-2;2"
+        # Specify the offsetY in numbers.
+        offsetY: 1
+        # Specify the minimum and maximum offsetZ values separated by ;
+        # Example: -3;3
+        offsetZ: "-2;2"
+        # Specify the minimum and maximum offsetZ values separated by ;
+        # Example: -35;35
+        offsetPitch: "-35;35"
+    hunter:
+      # 20 - all 10 hearts. 6 - 3 hearts.
+      health: 10
+      # Damage that the victim can deal to the hunter. 2 - 1 heart.
+      damage: 2
+      # How many seconds does it take for them to be teleported out of the cells?
+      spawn: 60
+      # Manage the location of the role.
+      spawnLocation:
+        offsetX: "-1;1"
+        offsetY: 1
+        offsetZ: "-1;1"
+        offsetPitch: "-35;35"
+    spectator:
+      # Should the transition of the player to a spectator be enabled after death?
+      enabled: true
+      # Specify the flyspeed.
+      flySpeed: 2
+  # Fence management.
+  fence:
+    # Should we break the fence after releasing the hunter?
+    break: true
+    # Select the area that will become air in the format: X1;Y1;Z1;X2;Y2;Z2
+    list:
+      - "6;1;13;9;4;13"
+  # Axe.
+  axe:
+    # How long until the axe spawns (in seconds).
+    spawn: 120
+    # How many seconds after the victim’s death will the axe respawn?
+    respawn: 5
+  # ArmorStand.
+  armorStand:
+    # Specify in the format X;Y;Z.
+    standLocation: "-0.1;-0.3;0"
+    blockLocation: "-1;1;0"
+    rightFace: "-100;0;0"
+# The game rules are configurable by the plugin.
+rules:
+  # Event when player food level changes.
+  foodLevelChange: false
+  # An event related to fall damage.
+  fallDamage: true
+  # Event when player picks up an item.
+  pickupItem: false
+  # Event when player consumes an item.
+  consumeItem: false
+  # Event when player drops an item.
+  dropItem: false
+  # Event when creature spawns in the world.
+  creatureSpawn: false
+  # Event when entity explodes.
+  entityExplode: false
+  # Event when entity targets another entity.
+  entityTarget: false
+  # Event when item spawns in the world.
+  itemSpawn: false
+  # Event when player places a block.
+  placeBlock: false
+  # Event when player breaks a block.
+  breakBlock: false
+  # Event when block starts burning.
+  burnBlock: false
+  # Event when block is ignited.
+  igniteBlock: false
+  # Event when block changes from one state to another.
+  fromToBlock: false
+  # Event when entity changes a block.
+  entityChangeBlock: false
+  # Event when block physics occurs.
+  physicsBlock: true
+  # Event when block fades.
+  fadeBlock: false
+  # Event when leaves decay naturally.
+  leavesDecay: false
+  # Event when player places multiple blocks at once.
+  multiPlaceBlock: false
+player:
+  # Specify the maximum number of hit points. 2 hit points = 1 heart.
+  health: 6
+  # Specify the food level that the player will always have.
+  foodLevel: 10
+  # Specify which gameMode will be issued to the player.
+  gameMode: ADVENTURE
+  # Should we immediately provide all items of schematics and default?
+  fullSlots: false
+  # Specify how many ticks the player will be kicked after. (Finish, 20 ticks = 1 second)
+  exitTime: 100
+# Set up the message.
+# This will only work if you have selected the plugin configuration mode.
+messages:
+  # Actions. These actions perform the same role as in the config.
+  # But there is no support for other languages here.
+  actions:
+    end: [ ]
+    kicked: [ ]
+    join: [ ]
+    quit: [ ]
+    role: [ ]
+    killHunter: [ ]
+    killVictim: [ ]
+    exitHun: [ ]
+    startAxe: [ ]
+    getAxe: [ ]
+    winHunter: [ ]
+    winVictim: [ ]

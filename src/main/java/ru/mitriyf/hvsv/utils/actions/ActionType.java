@@ -1,0 +1,5 @@
+package ru.mitriyf.hvsv.utils.actions;
+
+public enum ActionType {
+    ROOM, PLAYER, TELEPORT, MESSAGE, ACTIONBAR, CONNECT, TITLE, SOUND, EXPLOSION, EFFECT, CONSOLE, BROADCAST, BOSSBAR, LOG, DELAY
+}

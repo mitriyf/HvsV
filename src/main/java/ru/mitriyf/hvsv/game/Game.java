@@ -1,333 +1,382 @@
 package ru.mitriyf.hvsv.game;
 
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.bukkit.BukkitWorld;
 import lombok.Getter;
-import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.EulerAngle;
 import ru.mitriyf.hvsv.HvsV;
-import ru.mitriyf.hvsv.values.Values;
+import ru.mitriyf.hvsv.manager.GameManager;
+import ru.mitriyf.hvsv.model.*;
 import ru.mitriyf.hvsv.utils.Utils;
-import ru.mitriyf.hvsv.values.player.PlayerData;
+import ru.mitriyf.hvsv.utils.actions.Action;
+import ru.mitriyf.hvsv.values.Values;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Getter
 public class Game {
+    private final String map;
     private final HvsV plugin;
     private final Utils utils;
-    private final Values values;
-    private final ThreadLocalRandom rnd = ThreadLocalRandom.current();
-    private final List<Location> spawns = new ArrayList<>();
-    private final List<Location> items = new ArrayList<>();
-    private final List<Location> huntersLoc = new ArrayList<>();
-    private final List<BukkitTask> task = new ArrayList<>();
-    private final List<UUID> players = new ArrayList<>();
-    private final Set<UUID> axes = new HashSet<>();
-    private final Set<EditSession> schematics = new HashSet<>();
-    private final Set<UUID> hunters = new HashSet<>();
-    private final Set<UUID> victims = new HashSet<>();
-    private final Set<ArmorStand> stands = new HashSet<>();
-    private final Set<String> actives = new HashSet<>();
-    private final Map<String, List<String>> enters = new HashMap<>();
-    private double default_x = 7;
-    private double default_z = 7;
-    private final int radius;
     private final String name;
-    private final String map;
-    private final BukkitWorld world;
-    private boolean active = false;
-    private boolean start = false;
-    private boolean axe = false;
-    private String status = "&eПодготовка...";
-    public Game(HvsV plugin, String name, Player p) {
+    private final MapData info;
+    private final Values values;
+    private final GameManager gameManager;
+    private final ThreadLocalRandom random;
+    private final BukkitScheduler scheduler;
+    private final Set<UUID> axes = new HashSet<>();
+    private final Set<Location> actives = new HashSet<>();
+    private final Set<ArmorStand> stands = new HashSet<>();
+    private final List<BukkitTask> tasks = new ArrayList<>();
+    private final Map<UUID, MemberData> players = new HashMap<>();
+    private final String[] searchGame = {"%game%", "%axe%", "%role%", "%amount%", "%max_players%"};
+    private int foodLevel, exitTime, health, minTime, mediumTime, maxTime, min, medium, max;
+    private boolean active = true, start = false, axe = false, fullSlots;
+    private LocationsData locations;
+    private String mapName;
+
+    public Game(HvsV plugin, MapData mapData, String map, String name, Player player) {
         this.plugin = plugin;
+        this.info = mapData;
         this.utils = plugin.getUtils();
         this.values = plugin.getValues();
         this.name = name;
-        this.map = values.getMaps().get(rnd.nextInt(values.getMaps().size()));
-        for (Map.Entry<String, List<String>> entry : values.getEnter().entrySet()) enters.put(entry.getKey(), new ArrayList<>(entry.getValue()));
-        radius = values.getRadius();
-        world = new BukkitWorld(Bukkit.getWorld(values.getWorld()));
-        generateLocation();
-        addPlayer(p);
-        waitPlayers();
+        this.map = map;
+        random = plugin.getRandom();
+        gameManager = plugin.getGameManager();
+        scheduler = plugin.getServer().getScheduler();
+        setupSchematic(player);
     }
-    public void addPlayer(Player p) {
-        UUID uuid = p.getUniqueId();
-        values.getPlayers().put(uuid, new PlayerData(values, p, name));
-        p.teleport(getSpawn(0));
-        players.add(uuid);
-        p.getInventory().clear();
-        p.getInventory().setItem(0, new ItemStack(values.getExitI()));
-        for (UUID uid : players) {
-            for (String msg : values.getJoin()) sendMessage(uid, msg.replace("%player%", p.getName())
-                    .replace("%amount%", String.valueOf(players.size())));
+
+    private void setupSchematic(Player player) {
+        fullSlots = info.isFullSlots();
+        mapName = info.getName();
+        health = info.getHealth();
+        foodLevel = info.getFoodLevel();
+        exitTime = info.getExitTime();
+        min = info.getMin();
+        medium = info.getMedium();
+        max = info.getMax();
+        minTime = info.getMinTime();
+        mediumTime = info.getMediumTime();
+        maxTime = info.getMaxTime();
+        locations = new LocationsData(plugin, this, player);
+    }
+
+    public void addPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        gameManager.getWaiters().remove(uuid);
+        gameManager.getPlayers().put(uuid, new PlayerData(plugin, player, name));
+        MemberData memberData = new MemberData(player);
+        String locale = utils.getLocale().player(player);
+        memberData.setLocale(locale);
+        memberData.setStatus(values.getSWait().getOrDefault(locale, values.getSWait().get("")).replace("%time%", "0:00"));
+        Map<String, String> victimNames = values.getVictimName();
+        memberData.setName(victimNames.getOrDefault(locale, victimNames.get("")));
+        players.put(uuid, memberData);
+        player.setFallDistance(0);
+        if (!player.teleport(locations.getSpawn(false))) {
+            close(true, true);
+            return;
+        }
+        setDefault(player);
+        sendMessage(player, values.getJoin(), info.getJoin(), searchGame, new String[]{name, "", "", String.valueOf(players.size()), String.valueOf(max)});
+        if (players.size() >= max) {
+            active = true;
         }
     }
-    public void kickPlayer(Player p) {
-        UUID uuid = p.getUniqueId();
-        for (UUID uid : players) {
-            for (String msg : values.getQuit()) sendMessage(uid, msg.replace("%player%", p.getName())
-                        .replace("%amount%", String.valueOf(players.size() - 1)));
+
+    public void kickPlayer(Player player, boolean force, boolean isPluginStop) {
+        if (!isPluginStop) {
+            String[] strings = new String[]{name, "", "", String.valueOf(players.size() - 1), String.valueOf(max)};
+            sendMessage(player, values.getQuit(), info.getQuit(), searchGame, strings);
+            if (force) {
+                sendMessage(player, values.getKicked(), info.getKicked(), searchGame, strings);
+            } else {
+                sendMessage(player, values.getEnd(), info.getEnd(), searchGame, strings);
+            }
         }
-        players.remove(uuid);
-        hunters.remove(uuid);
-        victims.remove(uuid);
-        values.getPlayers().get(uuid).apply();
-        values.getPlayers().remove(uuid);
-        for (String msg : values.getKicked()) sendMessage(p, msg);
+        UUID uuid = player.getUniqueId();
+        Map<UUID, PlayerData> gameManagerPlayers = gameManager.getPlayers();
+        PlayerData data = gameManagerPlayers.get(uuid);
+        if (data != null) {
+            data.apply();
+        }
+        if (!force && !isPluginStop) {
+            scheduler.runTaskLater(plugin, () -> {
+                players.remove(uuid);
+                gameManagerPlayers.remove(uuid);
+            }, 5L);
+        } else {
+            players.remove(uuid);
+            gameManagerPlayers.remove(uuid);
+        }
     }
-    private void waitPlayers() {
+
+    public void waitPlayers() {
+        active = false;
         new BukkitRunnable() {
-            int time = values.getMinTime();
+            int time = minTime;
+
             @Override
             public void run() {
                 if (players.isEmpty()) {
+                    close(true, false);
                     cancel();
-                    close();
                     return;
-                }
-                if (time == 0) {
+                } else if (time == 0) {
                     start();
                     cancel();
+                    return;
                 }
-                else if (players.size() < values.getMin_players()) {
-                    time = values.getMinTime();
-                    status = values.getStopped().replace("%min_players%", String.valueOf(values.getMin_players()));
-                }
-                else {
-                    time--;
-                    status = values.getWait().replace("%time%", String.valueOf(time));
-                    if (players.size() >= values.getMax_players()) {
-                        active = true;
-                        if (time > values.getMaxTime()) {
-                            time = values.getMaxTime();
-                        }
+                if (players.size() < min) {
+                    time = minTime;
+                    for (MemberData memberData : players.values()) {
+                        memberData.setStatus(values.getSStopped().getOrDefault(memberData.getLocale(), values.getSStopped().get("")).replace("%min_players%", String.valueOf(min)));
                     }
-                    else if (players.size() >= values.getMedium_players()) {
+                } else {
+                    time--;
+                    for (MemberData memberData : players.values()) {
+                        memberData.setStatus(values.getSWait().getOrDefault(memberData.getLocale(), values.getSWait().get("")).replace("%time%", String.valueOf(time)));
+                    }
+                    if (players.size() >= max) {
+                        active = true;
+                        if (time > maxTime) {
+                            time = maxTime;
+                        }
+                    } else if (players.size() >= medium) {
                         active = false;
-                        if (time > values.getMediumTime()) {
-                            time = values.getMediumTime();
+                        if (time > mediumTime) {
+                            time = mediumTime;
                         }
                     }
                 }
             }
         }.runTaskTimer(plugin, 20, 20);
     }
+
     private void start() {
         active = true;
         start = true;
         setRoles();
         new BukkitRunnable() {
-            int time = values.getEndTime();
+            int time = info.getEndTime();
+
             @Override
             public void run() {
                 time--;
-                double m = Math.floor((double) time/60);
-                double s1 = time%60;
-                String s = String.valueOf(s1);
-                if (s1 < 10) {
-                    s = "0" + s1;
-                }
+                int minutes = (int) Math.floor((double) time / 60);
+                int seconds = time % 60;
                 if (time <= 0) {
+                    tasks.add(scheduler.runTaskLater(plugin, () -> close(false, false), info.getExitTime()));
                     cancel();
-                    for (UUID uuid : players) for (String msg : values.getEnd()) sendMessage(uuid, msg);
-                    task.add(Bukkit.getScheduler().runTaskLater(plugin, () -> close(), 100));
                 }
-                status = values.getStart().replace("%time%", m + ":" + s);
-                if (hunters.isEmpty()) {
+                Set<MemberData> hunters = new HashSet<>(), victims = new HashSet<>();
+                for (MemberData memberData : players.values()) {
+                    memberData.setStatus(values.getSStart().getOrDefault(memberData.getLocale(), values.getSStart().get("")).replace("%time%", minutes + ":" + (seconds < 10 ? "0" : "") + seconds));
+                    if (memberData.isSpectator()) {
+                        continue;
+                    }
+                    if (memberData.isHunter()) {
+                        hunters.add(memberData);
+                    } else {
+                        victims.add(memberData);
+                    }
+                }
+                if (victims.isEmpty()) {
+                    win(values.getSWinHunter(), hunters, values.getWinhunt(), info.getWinHunter());
                     cancel();
-                    win(values.getWin_victim(), victims, values.getWinvict());
-                } else if (victims.isEmpty()) {
+                } else if (hunters.isEmpty()) {
+                    win(values.getSWinVictim(), victims, values.getWinvict(), info.getWinVictim());
                     cancel();
-                    win(values.getWin_hunter(), hunters, values.getWinhunt());
                 }
             }
         }.runTaskTimer(plugin, 20, 20);
     }
-    private void win(String status, Set<UUID> winners, List<String> message) {
-        this.status = status;
-        for (UUID uuid : players) {
-            if (winners.contains(uuid)) {
-                Bukkit.getPlayer(uuid).setAllowFlight(true);
-                Bukkit.getPlayer(uuid).setFlying(true);
+
+    private void win(Map<String, String> status, Set<MemberData> winners, Map<String, List<Action>> winMessage, List<Action> infoMessage) {
+        for (MemberData memberData : players.values()) {
+            memberData.setStatus(status.getOrDefault(memberData.getLocale(), status.get("")));
+            Player player = memberData.getPlayer();
+            if (winners.contains(memberData)) {
+                player.setAllowFlight(true);
+                player.setFlying(true);
             }
-            for (String msg : message) sendMessage(uuid, msg);
+            sendMessage(player, winMessage, infoMessage);
         }
-        task.add(Bukkit.getScheduler().runTaskLater(plugin, this::close, 100));
+        tasks.add(scheduler.runTaskLater(plugin, () -> close(false, false), info.getExitTime()));
     }
+
     private void setRoles() {
-        List<UUID> playerList = new ArrayList<>(players);
-        amount(playerList);
-        for (UUID victim : victims) setRole(victim, values.getVicHealth(), values.getAirI(), 0, values.getVictim());
-        for (UUID hunter : hunters) {
-            Player p = setRole(hunter, values.getHunHealth(), values.getSwordI(), 1, values.getHunter());
-            p.getInventory().setHelmet(values.getHelmetI());
+        Collection<MemberData> memberDataCollection = players.values();
+        countHunters(memberDataCollection);
+        for (MemberData memberData : memberDataCollection) {
+            Player player = memberData.getPlayer();
+            if (memberData.isHunter()) {
+                setRole(player, info.getHunterHealth(), true, values.getHunterName());
+            } else {
+                setRole(player, info.getVictimHealth(), false, values.getVictimName());
+            }
         }
-        for (Location loc : items) {
-            ArmorStand stand = (ArmorStand) loc.getWorld().spawnEntity(loc.clone().add(-0.1, -0.3, 0), EntityType.ARMOR_STAND);
+        for (Location loc : locations.getItems()) {
+            double[] standLocation = info.getStandLocation();
+            ArmorStand stand = (ArmorStand) loc.getWorld().spawnEntity(loc.clone().add(standLocation[0], standLocation[1], standLocation[2]), EntityType.ARMOR_STAND);
             stand.setGravity(false);
             stand.setVisible(false);
-            EulerAngle a = new EulerAngle(Math.toRadians(values.getAfaceX()),Math.toRadians(values.getAfaceY()),Math.toRadians(values.getAfaceZ()));
-            stand.setRightArmPose(a);
+            double[] rightFace = info.getRightFace();
+            stand.setRightArmPose(new EulerAngle(Math.toRadians(rightFace[0]), Math.toRadians(rightFace[1]), Math.toRadians(rightFace[2])));
             stands.add(stand);
-            Block b = loc.clone().add(values.getAlocX(), values.getAlocY() - 1, values.getAlocZ()).getBlock();
-            Location loc1 = b.getLocation();
-            actives.add(loc1.getWorld().getName() + ":" + loc1.getX() + loc1.getY() + loc1.getZ());
+            double[] blockLocation = info.getBlockLocation();
+            actives.add(loc.clone().add(blockLocation[0], blockLocation[1], blockLocation[2]).getBlock().getLocation());
         }
-        task.add(Bukkit.getScheduler().runTaskLater(plugin, this::setAxe, values.getSpawnAxe() * 20L));
-        task.add(Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (UUID uuid : hunters) Bukkit.getPlayer(uuid).teleport(getSpawn(0));
-            for (UUID uid : players) for (String msg : values.getExitHun()) sendMessage(uid, msg);
-        }, values.getHunSpawn() * 20L));
-    }
-    private Player setRole(UUID type, int health, ItemStack item, int spawn, String role) {
-        Player p = Bukkit.getPlayer(type);
-        if (p != null) {
-            p.setHealth(20);
-            p.setFoodLevel(10);
-            p.setGameMode(GameMode.ADVENTURE);
-        }
-        p.setHealthScale(health);
-        p.getInventory().setItem(0, item);
-        p.teleport(getSpawn(spawn));
-        for (String msg : values.getRole()) sendMessage(p, msg.replace("%role%", role));
-        return p;
-    }
-    private void amount(List<UUID> playerList) {
-        for (String s : values.getPlayersHun()) {
-            String[] pi = s.split(":");
-            if (playerList.size() >= Integer.parseInt(pi[0])) {
-                for (int i = 0; i < Integer.parseInt(pi[1]); i++) {
-                    UUID hunter = playerList.get(rnd.nextInt(playerList.size()));
-                    hunters.add(hunter);
-                    playerList.remove(hunter);
+        tasks.add(scheduler.runTaskLater(plugin, this::setAxe, info.getAxeSpawn() * 20L));
+        tasks.add(scheduler.runTaskLater(plugin, () -> {
+            boolean fenceEnabled = info.isFenceEnabled();
+            for (MemberData memberData : players.values()) {
+                Player player = memberData.getPlayer();
+                if (!fenceEnabled && memberData.isHunter()) {
+                    player.setFallDistance(0);
+                    player.teleport(locations.getSpawn(false));
                 }
-                victims.addAll(playerList);
+                sendMessage(player, values.getExitHun(), info.getExitHun(), searchGame, new String[]{name, "", "", String.valueOf(players.size()), String.valueOf(max)});
+            }
+            if (fenceEnabled) {
+                locations.removeFence();
+            }
+        }, info.getHunterSpawn() * 20L));
+    }
+
+    @SuppressWarnings("deprecation")
+    private void setRole(Player player, int health, boolean isHunter, Map<String, String> roleMap) {
+        player.setMaxHealth(health);
+        player.setHealth(health);
+        player.setFoodLevel(info.getFoodLevel());
+        if (isHunter) {
+            utils.setSlots(player, values.getHunterSlots());
+            if (fullSlots) {
+                utils.setSlots(player, info.getDefaultSlots());
+            }
+        }
+        player.setFallDistance(0);
+        if (!player.teleport(locations.getSpawn(isHunter))) {
+            close(true, false);
+            return;
+        }
+        sendMessage(player, values.getRole(), info.getRole(), searchGame, new String[]{name, "", roleMap.getOrDefault(utils.getLocale().player(player), roleMap.get("")), String.valueOf(players.size()), String.valueOf(max)});
+    }
+
+    private void countHunters(Collection<MemberData> players) {
+        List<MemberData> playerList = new ArrayList<>(players);
+        for (int[] s : info.getPlayersHun()) {
+            if (playerList.size() >= s[0]) {
+                for (int i = 0; i < s[1]; i++) {
+                    MemberData memberData = playerList.remove(random.nextInt(playerList.size()));
+                    memberData.setHunter(true);
+                    Map<String, String> hunterNames = values.getHunterName();
+                    memberData.setName(hunterNames.getOrDefault(memberData.getLocale(), hunterNames.get("")));
+                }
                 return;
             }
         }
     }
-    private void sendMessage(UUID uuid, String msg) {
-        send(Bukkit.getPlayer(uuid), uuid, msg);
-    }
-    private void sendMessage(Player p, String msg) {
-        send(p, p.getUniqueId(), msg);
-    }
-    public void send(Player p, UUID uuid, String msg) {
-        if (msg.startsWith("[hunters] ")) {
-            if (hunters.isEmpty() || hunters.contains(uuid)) utils.sendMessage(p, msg.replace("[hunters] ", ""));
-        }
-        else if (msg.startsWith("[victims] ")) {
-            if (victims.isEmpty() || victims.contains(uuid)) utils.sendMessage(p, msg.replace("[victims] ", ""));
-        }
-        else utils.sendMessage(p, msg);
-    }
+
     public void setAxe() {
-        for (ArmorStand stand : stands) stand.setItemInHand(values.getAxeI());
-        axe = true;
-        for (UUID uid : players) for (String msg : values.getStartAxe()) sendMessage(Bukkit.getPlayer(uid), msg);
-    }
-    public void unsetAxe(String name) {
-        for (ArmorStand stand : stands) stand.setItemInHand(values.getAirI());
-        axe = false;
-        for (UUID uid : players) for (String msg : values.getListAxe()) sendMessage(Bukkit.getPlayer(uid), msg.replace("%player%", name));
-    }
-    public Location getSpawn(int type) {
-        Location loc;
-        if (type == 1) loc = huntersLoc.get(rnd.nextInt(huntersLoc.size()));
-        else loc = spawns.get(rnd.nextInt(spawns.size()));
-        double r;
-        double rz;
-        if (type == 0) {
-            r = rnd.nextDouble(default_x - 2) + 1;
-            rz = rnd.nextDouble(default_x - 2) + 1;
-        }
-        else {
-            r = rnd.nextDouble(default_x/2 - 3, default_x/2 + 3);
-            rz = rnd.nextDouble(default_z/2 - 3, default_z/2 + 3);
-        }
-        Location spawn = loc.clone().add(r, 1, rz);
-        Material minus = cloneLoc(spawn, 0, -1, 0);
-        if (cloneLoc(spawn, 0, 2, 0) == Material.AIR && cloneLoc(spawn, 0, 1, 0) == Material.AIR && spawn.getBlock().getType() == Material.AIR && minus != Material.AIR && minus != Material.WATER && minus != Material.LAVA) {
-            spawn.setYaw(rnd.nextInt(360));
-            spawn.setPitch(rnd.nextInt(-35, 35));
-            return spawn;
-        }
-        else return getSpawn(type);
-    }
-    private void generateLocation() {
-        Block b = Bukkit.getWorld(values.getWorld()).getBlockAt(rnd.nextInt(values.getX1(), values.getX2()), values.getY(), rnd.nextInt(values.getZ1(), values.getZ2()));
-        Location loc = b.getLocation();
-        int r = values.getRadius();
-        if (b.getType() == Material.AIR && cloneLoc(loc, -r, 0, -r) == Material.AIR && cloneLoc(loc, -r, 0, 0) == Material.AIR &&
-                cloneLoc(loc, 0, 0, -r) == Material.AIR && cloneLoc(loc, r, 0, r) == Material.AIR &&
-                cloneLoc(loc, r, 0, 0) == Material.AIR && cloneLoc(loc,0, 0, r) == Material.AIR) {
-            double x = 0;
-            double z = 0;
-            for (String s : values.getMap()) {
-                String[] type = s.split(" ");
-                Vector v = paste(loc.clone().add(x, 0, 0), type[0]);
-                default_x = v.getX();
-                default_z = v.getZ();
-                for (String value : type) {
-                    if (z != 0) paste(loc.clone().add(x, 0, z), value);
-                    z += default_z;
-                }
-                z = 0;
-                x += default_x;
-            }
-        }
-        else generateLocation();
-    }
-    private Material cloneLoc(Location spawn, int x, int y, int z) {
-        return spawn.clone().add(x, y, z).getBlock().getType();
-    }
-    private Vector paste(Location loc, String s) {
-        for (String q : values.getSpawns()) if (s.equals(q)) spawns.add(loc.clone());
-        for (String q : values.getItems()) if (s.equals(q)) items.add(loc.clone().add(default_x / 2, 1, default_z / 2));
-        for (String q : values.getHunters()) if (s.equals(q)) huntersLoc.add(loc.clone());
-        s = values.getCategory().get(s).replace("%map%", map);
-        String schematic;
-        if (!enters.containsKey(s)) {
-            List<String> schematics = values.getSchematics().get(s);
-            int i = rnd.nextInt(schematics.size());
-            schematic = schematics.get(i);
+        Collection<ItemStackData> valuesVictimSlots = values.getVictimSlots().values();
+        Collection<ItemStackData> infoVictimSlots = info.getVictimSlots().values();
+        List<ItemStack> victimWeapons = new ArrayList<>();
+        if (valuesVictimSlots.isEmpty() && infoVictimSlots.isEmpty()) {
+            victimWeapons.add(values.getAirStack());
         } else {
-            if (enters.get(s).isEmpty()) {
-                enters.remove(s);
-                enters.put(s, new ArrayList<>(values.getEnter().get(s)));
-            }
-            int r = rnd.nextInt(enters.get(s).size());
-            String s2 = s + "/" + enters.get(s).get(r);
-            enters.get(s).remove(r);
-            List<String> schematics = values.getSchematics().get(s2);
-            int i = rnd.nextInt(schematics.size());
-            schematic = schematics.get(i);
-            s = s2;
+            utils.checkItems(infoVictimSlots, victimWeapons);
+            utils.checkItems(valuesVictimSlots, victimWeapons);
         }
-        return utils.paste(loc, getSchematics(), s, schematic);
+        utils.setStandHand(stands, victimWeapons.get(random.nextInt(victimWeapons.size())));
+        axe = true;
+        for (MemberData memberData : players.values()) {
+            sendMessage(memberData.getPlayer(), values.getStartAxe(), info.getStartAxe());
+        }
     }
-    public void close() {
-        for (UUID uuid : new ArrayList<>(players)) kickPlayer(Bukkit.getPlayer(uuid));
-        for (EditSession session : new ArrayList<>(schematics)) session.undo(session);
-        for (ArmorStand stand : new HashSet<>(stands)) stand.remove();
-        for (BukkitTask task1 : new ArrayList<>(task)) task1.cancel();
-        task.clear();
+
+    public void unSetAxe(String playerName) {
+        utils.setStandHand(stands, values.getAirStack());
+        axe = false;
+        for (MemberData memberData : players.values()) {
+            sendMessage(memberData.getPlayer(), values.getGetAxe(), info.getGetAxe(), searchGame, new String[]{name, playerName, "", String.valueOf(players.size()), String.valueOf(max)});
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void setDefault(Player player) {
+        player.setFlying(false);
+        player.setMaxHealth(health);
+        player.setHealth(health);
+        player.setFoodLevel(foodLevel);
+        player.setAllowFlight(false);
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(null);
+        player.setGameMode(info.getGameMode());
+        utils.setSlots(player, values.getDefaultSlots());
+        if (fullSlots) {
+            utils.setSlots(player, info.getDefaultSlots());
+        }
+    }
+
+    public void close(boolean force, boolean isPluginStop) {
+        tasks.clear();
         actives.clear();
-        values.getRooms().remove(name);
+        for (MemberData memberData : new HashSet<>(players.values())) {
+            kickPlayer(memberData.getPlayer(), force, isPluginStop);
+        }
+        players.clear();
+        for (ArmorStand stand : stands) {
+            stand.remove();
+        }
+        stands.clear();
+        for (BukkitTask task : tasks) {
+            utils.getTasks().remove(task.getTaskId());
+            task.cancel();
+        }
+        plugin.getServer().unloadWorld(name, false);
+        gameManager.getRooms().remove(name);
+        if (values.isDeleteWhenClosing()) {
+            values.deleteDirectory(new File(name));
+        }
+    }
+
+    public void tryToSpectator(Player player, Location location) {
+        if (!info.isSpectatorEnabled()) {
+            kickPlayer(player, false, false);
+            return;
+        }
+        MemberData memberData = players.get(player.getUniqueId());
+        if (memberData != null) {
+            memberData.setSpectator(true);
+            player.setGameMode(GameMode.SPECTATOR);
+            player.setFallDistance(0);
+            if (!player.teleport(location)) {
+                close(true, true);
+                return;
+            }
+            player.setFlySpeed(info.getSpectatorFlySpeed());
+        }
+    }
+
+    public void sendMessage(Player player, Map<String, List<Action>> msg, List<Action> msgSchem, String[] s, String[] r) {
+        tasks.add(utils.sendMessage(player, msg, s, r));
+        tasks.add(utils.sendMessage(player, msgSchem, s, r));
+    }
+
+    public void sendMessage(Player player, Map<String, List<Action>> msg, List<Action> msgSchem) {
+        tasks.add(utils.sendMessage(player, msg));
+        tasks.add(utils.sendMessage(player, msgSchem));
     }
 }

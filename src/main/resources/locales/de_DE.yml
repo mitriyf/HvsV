@@ -1,0 +1,116 @@
+# Die Version-Einstellung nicht bereinigen.
+version: 1.3
+
+# Nachrichten.
+messages:
+  # Aktionen (Actions):
+  # [actionbar] Nachricht - Sendet eine Actionbar mit deiner Nachricht. Für 1.11+
+  # [connect] Server - Sendet einen Spieler zu einem bestimmten BungeeCord-Server.
+  # WARNUNG: Benötigt BungeeMessaging. Dies ist in BungeeCord und WaterFall vorhanden.
+  # Bei Velocity ist es möglicherweise standardmäßig deaktiviert. Überprüfe deine Proxy-Konfiguration.
+  # [message] Nachricht - Sendet eine Nachricht an den Spieler.
+  # [room] Nachricht - Sendet eine Nachricht an alle Spieler im Raum.
+  # [broadcast] Nachricht - Sendet eine Nachricht an alle Spieler auf dem Server.
+  # [log] Nachricht - Sendet eine Nachricht an die Konsole.
+  # [delay] Ticks - Erzeugt eine Verzögerung zwischen Aktionen. In Ticks (20 Ticks = 1 Sekunde).
+  # [player] Nachricht - Führt eine Nachricht im Namen des Spielers aus (oder einen Befehl via /).
+  # [teleport] Welt;x;y;z;yaw;pitch;Verzögerung - Teleportiert den Spieler zu den angegebenen Koordinaten. Die Verzögerung wird in Ticks gemessen.
+  # [console] Befehl - Führt den Befehl im Namen der Serverkonsole aus.
+  # [title] Titel;Untertitel;Erscheinen;Bleiben;Verschwinden - Sendet einen Titel an den Spieler. Für 1.8+
+  # [sound] Sound;Lautstärke;Tonhöhe(pitch);Verzögerung - Spielt einen Sound für den Spieler ab. Die Verzögerung wird in Ticks gemessen.
+  # Suche hier nach Sounds: https://helpch.at/docs/$version$/org/bukkit/Sound.html
+  # // Ersetze $version$ durch die Version deines Servers, zum Beispiel: https://helpch.at/docs/1.8.8/org/bukkit/Sound.html
+  # [effect] Typ;Dauer;Stärke;Verzögerung - Gibt dem Spieler den Trankeffekt. Die Verzögerung und Dauer werden in Ticks gemessen.
+  # Finde die Arten von Effekten hier: https://helpch.at/docs/$version$/org/bukkit/potion/PotionEffectType.html
+  # [explosion] Stärke;FeuerSetzen;BlöckeZerstören;Verzögerung;addX;addY;addZ - Erzeugt eine Explosion. Die Verzögerung wird in Ticks gemessen.
+  # FeuerSetzen (setFire), BlöckeZerstören (breakBlocks) - auf false oder true setzen. addX, addY, addZ - Double-Werte, die zur Explosionsposition des Spielers hinzugefügt werden.
+  # [bossbar] Nachricht;Farbe;Typ;Zeit;Stil;Flag - Sendet eine Bossbar an einen Spieler mit einer Nachricht für eine bestimmte Zeit. Für 1.9+
+  # Typen:
+  # stop - Die Bossbar verschwindet nach der in Zeit angegebenen Zeit (in Sekunden).
+  # time - Die Bossbar animiert die ablaufende Zeit.
+  # Funktionen:
+  # %time% - Verbleibende Sekunden.
+  # Du kannst alle Funktionen wie Farbe, Stil und Flag hier finden: https://helpch.at/docs/$version$/org/bukkit/boss/BossBar.html
+  #
+  # Platzhalter:
+  # %hvsv_role% - Zeigt die Rolle des Spielers an.
+  # %hvsv_map% - Zeigt den Namen der Karte an.
+  # %hvsv_id% - Zeigt die ID der Karte an.
+  # %hvsv_status% - Zeigt den Status der Karte an.
+  # %hvsv_online% - Zeigt die Anzahl der Online-Spieler in diesem Spiel an.
+  # %hvsv_maxonline% - Zeigt die maximale Anzahl der Online-Spieler in diesem Spiel an.
+  #
+  # Nachrichten von HvsV (Jäger gegen Opfer)
+  game:
+    # Du kannst keine Aktionen (actions) in Status, Rollen und Platzhaltern verwenden.
+    status:
+      wait: "&fStart in: &e%time% &fSek."
+      start: "&fBis zum Ende des Spiels: &e%time%"
+      stopped: "&fZum Starten benötigte Spieler: &e%min_players%"
+      winVictim: "&aDie Opfer haben gewonnen!"
+      winHunter: "&cDie Jäger haben gewonnen!"
+    role:
+      victim: "&aOpfer"
+      hunter: "&cJäger"
+    actions:
+      command:
+        help:
+          - "[message] &a[HVSV] Hilfe &7(/hvsv help):"
+          - "[message] &f"
+          - "[message] &a/hvsv status &f- Zeigt den Plugin-Status an."
+          - "[message] &a/hvsv join &f- Erstelle oder trete einem verfügbaren Raum bei."
+          - "[message] &a/hvsv join RaumID &f- Versuche, dich mit dem Raum zu verbinden (falls verfügbar)."
+          - "[message] &a/hvsv exit &f- Verlasse den Raum."
+          - "[message] &a/hvsv admin &f- Erhalte Admin-Hilfe."
+          - "[message] &a/hvsv reload &f- Lade die Plugin-Konfiguration neu."
+          - "[message] &f"
+        noperm:
+          - "[message] &cDu hast nicht genügend Rechte!"
+      room:
+        notfound:
+          - "[message] &cDiese Map existiert nicht."
+        started:
+          - "[message] &cDas Spiel hat bereits begonnen."
+        connect:
+          - "[message] &aVerbinde mit Raum &e%room%..."
+        waiter:
+          - "[message] &aDu wurdest in die Warteschlange eingereiht."
+          - "[message] &fWarteschlange verlassen: &c/hvsv exit"
+        exit:
+          - "[message] &cDu hast die Warteschlange verlassen."
+        noExit:
+          - "[message] &cDu bist nicht im Spiel."
+      game:
+        inGame:
+          - "[message] &cDu bist bereits im Spiel!"
+        end:
+          - "[message] &cDas Spiel ist vorbei."
+        kicked:
+          - "[message] &cDu wurdest aus dem Spiel geworfen."
+        join:
+          - "[message] &aSie sind mit dem Spiel verbunden: &e%game%"
+          - "[room] &aSpieler &e%player% &ahat das Spiel betreten &f(&e%amount%&f/&e%max_players%&f)"
+        quit:
+          - "[room] &cSpieler &e%player% &chat das Spiel verlassen &f(&e%amount%&f/&e%max_players%&f)"
+        role:
+          - "[message] &fDu bist %role%!"
+          - "[title] &fRolle:;%role%"
+          - "[message] &cDie Jäger &fwerden bald freigelassen. Beeil dich und versteck dich!"
+        killHunter:
+          - "[message] &fDas Opfer &a%victim% &cneutralisierte&f den Jäger &c%hunter%"
+        killVictim:
+          - "[message] &fDer Jäger &c%hunter% &ctötete&f das Opfer &a%victim%"
+        exitHun:
+          - "[message] &cDie Jäger &fsind aus ihrer Gefangenschaft ausgebrochen!"
+          - "[title] &cDie Jäger;&aSie sind frei!"
+        startAxe:
+          - "[message] &aEine Axt&f ist erschienen!"
+          - "[title] &aAxt;&fist erschienen!"
+        getAxe:
+          - "[message] &fSpieler &e%axe% &fhat die Axt aufgehoben! &cLauft, Jäger!"
+        winHunter:
+          - "[message] &cDie Jäger haben gewonnen!"
+          - "[title] &cDie Jäger;&fhaben gewonnen!"
+        winVictim:
+          - "[message] &aDie Opfer haben gewonnen!"
+          - "[title] &aDie Opfer;&fhaben gewonnen!"

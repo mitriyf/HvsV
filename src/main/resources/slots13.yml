@@ -1,0 +1,55 @@
+# If you use ItemStack, all comments in this config will be cleared.
+# Default Item Slots.
+# Item types: itemstack, default.
+# itemStack - An item can be added by a team or experienced people.
+# default - Using the plugin features.
+# [default] To add a name or description to an item, specify name and lore, for example, exit.
+default:
+  player:
+    # [default] To add a name or description to an item, specify name and lore, for example, exit.
+    # ID of the item.
+    exit:
+      # Item types: itemstack, default.
+      # itemStack - An item can be added by a team or experienced people.
+      # default - Using the plugin features.
+      # Item slot.
+      slot: 8
+      type: default
+      # Set true to make the item kick the player out of the game when clicked.
+      exit: true
+      # Item Info.
+      item:
+        # The name of the item.
+        name: "&cExit"
+        # Description of the item.
+        lore:
+          - ""
+          - "&cExit&f, and what is it?"
+          - ""
+        type: BARRIER
+  victim:
+    kill:
+      slot: 0
+      type: default
+      weapon: true
+      item:
+        type: IRON_AXE
+  hunter:
+    kill:
+      slot: 0
+      type: default
+      weapon: true
+      item:
+        type: DIAMOND_SWORD
+    helmet:
+      slot: 39
+      type: default
+      item:
+        type: SPAWNER
+# Specify items for specific schematics.
+schematics:
+  # Specify the schem ID.
+  default:
+    player: [ ]
+    hunter: [ ]
+    victim: [ ]
