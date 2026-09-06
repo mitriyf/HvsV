@@ -50,7 +50,6 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
-    @SuppressWarnings("deprecation")
     public void onEntityDamage(EntityDamageByEntityEvent e) {
         Entity entity = e.getEntity();
         Entity entityDamager = e.getDamager();
@@ -62,41 +61,46 @@ public class PlayerListener implements Listener {
         if (!values.isDamageWaiters() && (gameManager.getWaiters().contains(damager.getUniqueId()) || gameManager.getWaiters().contains(player.getUniqueId()))) {
             e.setCancelled(true);
         }
-        World world = entity.getWorld();
-        if (startWithWorld(world)) {
-            Game game = gameManager.getGame(world.getName());
-            if (game != null) {
-                if (!game.isActive()) {
-                    e.setCancelled(true);
+        checkSpecialDamage(entity.getWorld(), player, damager, e);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void checkSpecialDamage(World world, Player player, Player damager, EntityDamageEvent event) {
+        if (!startWithWorld(world)) {
+            return;
+        }
+        Game game = gameManager.getGame(world.getName());
+        if (game == null) {
+            return;
+        } else if (!game.isActive()) {
+            event.setCancelled(true);
+        }
+        Map<UUID, MemberData> players = game.getPlayers();
+        MemberData damagerData = players.get(damager.getUniqueId());
+        MemberData playerData = players.get(player.getUniqueId());
+        if (damagerData == null || playerData == null) {
+            return;
+        }
+        boolean isDamagerHunter = damagerData.isHunter();
+        if (isDamagerHunter == playerData.isHunter()) {
+            event.setCancelled(true);
+        }
+        ItemStack hand = damager.getItemInHand();
+        MapData info = game.getInfo();
+        if (info != null) {
+            if (utils.checkItemIsWeapon(hand, true, values.getHunterSlots().values(), values.getVictimSlots().values(), info.getHunterSlots().values(), info.getVictimSlots().values())) {
+                int damage;
+                if (damagerData.isHunter()) {
+                    damage = info.getHunterDamage();
+                    event.setDamage(damage);
+                } else {
+                    damage = info.getVictimDamage();
+                    event.setDamage(damage);
+                    checkHitRules(info, player);
                 }
-                Map<UUID, MemberData> players = game.getPlayers();
-                MemberData damagerData = players.get(damager.getUniqueId());
-                MemberData playerData = players.get(player.getUniqueId());
-                if (damagerData == null || playerData == null) {
-                    return;
-                }
-                boolean isDamagerHunter = damagerData.isHunter();
-                if (isDamagerHunter == playerData.isHunter()) {
-                    e.setCancelled(true);
-                }
-                ItemStack hand = damager.getItemInHand();
-                MapData info = game.getInfo();
-                if (info != null) {
-                    if (utils.checkItemIsWeapon(hand, true, values.getHunterSlots().values(), values.getVictimSlots().values(), info.getHunterSlots().values(), info.getVictimSlots().values())) {
-                        int damage;
-                        if (damagerData.isHunter()) {
-                            damage = info.getHunterDamage();
-                            e.setDamage(damage);
-                        } else {
-                            damage = info.getVictimDamage();
-                            e.setDamage(damage);
-                            checkHitRules(info, player);
-                        }
-                        checkDamage(game, player, damager, damage, e);
-                    } else {
-                        e.setDamage(0);
-                    }
-                }
+                checkDamage(game, player, damager, damage, event);
+            } else {
+                event.setDamage(0);
             }
         }
     }
