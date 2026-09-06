@@ -331,7 +331,6 @@ public class Game {
     }
 
     public void close(boolean force, boolean isPluginStop) {
-        tasks.clear();
         actives.clear();
         for (MemberData memberData : new HashSet<>(players.values())) {
             kickPlayer(memberData.getPlayer(), force, isPluginStop);
@@ -341,15 +340,24 @@ public class Game {
             stand.remove();
         }
         stands.clear();
-        for (BukkitTask task : tasks) {
-            utils.getTasks().remove(task.getTaskId());
-            task.cancel();
+        if (isPluginStop) {
+            clearTasks();
+        } else {
+            scheduler.runTaskLater(plugin, this::clearTasks, 5L);
         }
         plugin.getServer().unloadWorld(name, false);
         gameManager.getRooms().remove(name);
         if (values.isDeleteWhenClosing()) {
             values.deleteDirectory(new File(name));
         }
+    }
+
+    private void clearTasks() {
+        for (BukkitTask task : tasks) {
+            utils.getTasks().remove(task.getTaskId());
+            task.cancel();
+        }
+        tasks.clear();
     }
 
     public void tryToSpectator(Player player, Location location) {
