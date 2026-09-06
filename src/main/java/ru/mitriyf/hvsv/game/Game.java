@@ -37,6 +37,7 @@ public class Game {
     private final Set<Location> actives = new HashSet<>();
     private final Set<ArmorStand> stands = new HashSet<>();
     private final List<BukkitTask> tasks = new ArrayList<>();
+    private final Set<MemberData> oldMembers = new HashSet<>();
     private final Map<UUID, MemberData> players = new HashMap<>();
     private final String[] searchGame = {"%game%", "%axe%", "%role%", "%amount%", "%max_players%"};
     private int foodLevel, exitTime, health, minTime, mediumTime, maxTime, min, medium, max;
@@ -111,13 +112,16 @@ public class Game {
         if (data != null) {
             data.apply();
         }
-        players.remove(uuid);
+        MemberData memberData = players.remove(uuid);
+        oldMembers.add(memberData);
         if (!force && !isPluginStop) {
             scheduler.runTaskLater(plugin, () -> {
                 gameManagerPlayers.remove(uuid);
+                oldMembers.remove(memberData);
             }, 5L);
         } else {
             gameManagerPlayers.remove(uuid);
+            oldMembers.remove(memberData);
         }
     }
 
